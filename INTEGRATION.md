@@ -63,7 +63,7 @@ socket. If that's hard, tell us and the client will send `join` as soon as the s
 | `{type:"transcript", text, final}` | Live "You said …" under the mic. Send partials while talking, then `final:true` |
 | `{type:"chips", include, exclude, budget?, student?, company?}` | **Merged** into the user's vybe (adds tags; a tag can't be in both lists; `budget`/`student`/`company` overwrite when present). The client then sends `prefs` back. The start screen shows "Got it…" until this arrives (8 s timeout) |
 | `{type:"note", text}` | Shown as a 3 s toast, e.g. "Removed 2 outdoor, budget now under £10" |
-| `{type:"announce", item_id, kind, url, caption}` | Plays the PCM clip at `url` (PCM16, 24 000 Hz) with a caption under the header. Empty or failing `url` plays a short chime instead |
+| `{type:"announce", item_id, kind, url, caption}` | Silent "time to go" caption under the header, only for the best pick or saved rows (flow 6). Tap opens the ticket |
 | `{type:"decision", item_id, by, plan:{leave_in_min, walk_min}}` | (P6) Group decision screen |
 
 ### `board` details that matter for the UI
@@ -261,27 +261,35 @@ The user is on the board and says something like "cheaper, nothing outdoors" or 
 - The client **adds** your tags to the current vybe; a tag can't be both into and not-into (the newest wins).
   To remove a tag, put it on the other side (e.g. `include: ["outdoors"]` lifts an earlier exclude).
 
-### 6. Announcements (the station voice)
+### 6. "Time to go" nudges (`announce`)
 
-Send an `announce` when one of the user's **picked** rows changes status:
+On the phone these are **silent**: a short caption slides down under the header (plus a tiny vibration on
+Android), and tapping it opens that ticket. They only make sense for things the user cares about, at the
+moments they need to act, so:
 
-| When | `kind` | Example caption |
+- **Only for** the user's **best pick** (`pick:"best"`) or rows they've **saved** (`feedback` `like`).
+  The client ignores announcements for anything else.
+- **Only at two moments**, once each per row:
+
+| When | `kind` | Caption (plain English, one sentence) |
 |---|---|---|
-| A pick goes `on_time` → `boarding` | `boarding` | "Basement Stand-Up is now boarding. Leave in 15 minutes." |
-| A pick goes → `last_call` | `last_call` | "Last call for Basement Stand-Up. Leave now." |
-| Group decision made (P6) | `doors` | "Doors closing. You're going to Basement Stand-Up." |
+| ~10 min before `leave_by` | `boarding` | "Heads up: Basement Stand-Up starts at 19:30. Leave in about 10 min." |
+| at `leave_by` (±1 min) | `last_call` | "Time to go: leave now, Basement Stand-Up starts at 19:30." |
+| group decision made (P6) | `doors` | "You're going to Basement Stand-Up. Leave in 8 min." |
+
+- **Never on the first board** after `join`: if something is already due, the board shows it.
+- At most one every few minutes; don't burst.
+- Phrase it by `departure_label`: "starts at", "the deal at <venue> ends at", "last entry for <name> is",
+  "the kitchen at <venue> closes at".
 
 ```json
-{"type":"announce","item_id":"basement-stand-up","kind":"boarding",
- "url":"/audio/basement-stand-up-boarding.pcm","caption":"Basement Stand-Up is now boarding. Leave in 15 minutes."}
+{"type":"announce","item_id":"basement-stand-up","kind":"boarding","url":"",
+ "caption":"Heads up: Basement Stand-Up starts at 19:30. Leave in about 10 min."}
 ```
 
-- **Audio format:** raw **PCM16 little-endian, mono, 24 000 Hz, no WAV header**. Serve it from the same
-  origin (or with CORS). A calm British station-announcer voice, ≤ ~6 s.
-- Once per row per `kind` (don't repeat on every board). The client plays one clip at a time and drops
-  extras if more than 2 are queued, so don't burst.
-- The caption is shown on screen while the clip plays, so make it match what's said.
-- `voiceover_url` on a row (the ticket's speaker button) uses the same audio format.
+`url` can be empty: the phone doesn't play announcement audio. (A spoken version may come back for the
+laptop/TV display mode later. If so: raw PCM16 mono 24 kHz, no header.) A row's `voiceover_url`, played
+only when the user taps the speaker on a ticket, uses that same audio format.
 
 ### 7. Save and "Not for me"
 
@@ -322,7 +330,7 @@ If location is denied, nothing is sent: use your default area. Show the area's n
 - [ ] `talk_text` → `chips`
 - [ ] `purpose:"command"` → `chips` + `note` + `board`
 - [ ] statuses, `leave_by`, picks and `count` computed server-side; departed rows kept briefly
-- [ ] `announce` when a pick turns boarding / last call, with PCM16 24 kHz mono audio
+- [ ] `announce` heads-up (~10 min) and "time to go" for the best pick and saved rows only, never on the first board
 - [ ] `feedback` skip removes the row for that user, like/skip re-rank, each answered with a `note`
 - [ ] photos: good or `null`, served from your origin, `colors` sent with them
 - [ ] `location` → walking times from that point, `board.area` = label

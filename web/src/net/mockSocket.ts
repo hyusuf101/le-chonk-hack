@@ -11,7 +11,7 @@ import type {
   TalkPurpose,
 } from '../contract';
 import { MOCK_ITEMS, type MockItem } from '../mock/items';
-import { londonWallTime, MINUTE } from '../lib/time';
+import { formatHM, londonWallTime, MINUTE } from '../lib/time';
 import type { ConnStatus, VybeSocket } from './socket';
 
 const TICK_MS = 250;
@@ -33,6 +33,8 @@ const MOCK_SENTENCE = 'Me and two mates, want a laugh, nothing over a tenner.';
 const MOCK_COMMAND = 'Cheaper, and nothing outdoors.';
 const MOCK_SENTENCE_CHIPS: ChipsMsg = { type: 'chips', include: ['a laugh'], exclude: [], budget: 10, company: 3 };
 const WORD_MS = 280;
+const HEADS_UP_MIN = 10;
+const GO_MIN = 2;
 const THINK_MS = 700;
 
 /** How the mock reads "not into" tags against its items. */
@@ -80,8 +82,9 @@ export function createMockSocket(): VybeSocket {
   let joined = false;
   let area = 'London Bridge';
   const hidden = new Set<string>();
-  // Announce a pick once per status change; statuses already showing when you join stay quiet.
+  // Nudge once per item per moment; anything already due when you join stays quiet.
   const announced = new Set<string>();
+  const liked = new Set<string>();
   let primed = false;
   let talkTimer: number | undefined;
   let spoken = 0;
@@ -129,24 +132,45 @@ export function createMockSocket(): VybeSocket {
     }
   }
 
+  /** "Basement Stand-Up starts at 19:30", "the deal at Hanabi Ramen Bar ends at 19:15", ... */
+  function whatHappens(r: Row): string {
+    const t = formatHM(r.departure_time);
+    switch (r.departure_label) {
+      case 'Starts':
+        return `${r.name} starts at ${t}`;
+      case 'Deal ends':
+        return `the deal at ${r.venue} ends at ${t}`;
+      case 'Last entry':
+        return `last entry for ${r.name} is ${t}`;
+      case 'Kitchen closes':
+        return `the kitchen at ${r.venue} closes at ${t}`;
+    }
+  }
+
+  /**
+   * Nudges for things the user cares about (best pick or saved), at the moments that need action:
+   * a heads-up ~10 min before leaving and "time to go" at leave time. Nothing fires on first load.
+   */
   function announceChanges(rows: Row[], now: number) {
     for (const r of rows) {
-      const kind = r.status === 'boarding' ? 'boarding' : r.status === 'last_call' ? 'last_call' : null;
-      if (!r.pick || !kind) continue;
+      if (r.pick !== 'best' && !liked.has(r.id)) continue;
+      const mins = Math.round((Date.parse(r.leave_by) - now) / MINUTE);
+      const kind = mins <= HEADS_UP_MIN && mins > GO_MIN ? 'boarding' : mins <= GO_MIN && mins >= -1 ? 'last_call' : null;
+      if (!kind) continue;
       const key = `${r.id}:${kind}`;
       if (announced.has(key)) continue;
       announced.add(key);
       if (!primed) continue;
-      const mins = Math.max(1, Math.round((Date.parse(r.leave_by) - now) / MINUTE));
+      const what = whatHappens(r);
       emit({
         type: 'announce',
         item_id: r.id,
         kind,
-        url: '', // no audio in the mock: the client plays its station chime
+        url: '',
         caption:
           kind === 'boarding'
-            ? `${r.name} is now boarding. Leave in ${mins} minutes.`
-            : `Last call for ${r.name}. Leave now.`,
+            ? `Heads up: ${what.charAt(0).toUpperCase() + what.slice(1)}. Leave in about ${mins} min.`
+            : `Time to go: leave now, ${what}.`,
       });
     }
     primed = true;
@@ -248,6 +272,7 @@ export function createMockSocket(): VybeSocket {
             emit({ type: 'note', text: `Hidden ${item.name}. We\u2019ll show fewer like it.` });
             emit(board());
           } else {
+            liked.add(item.id);
             emit({ type: 'note', text: `Saved ${item.name}` });
           }
           break;

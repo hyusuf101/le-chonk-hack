@@ -1,4 +1,4 @@
-/* Slides down just under the header row while an announcement plays */
+/* A quiet "time to go" nudge that slides down just under the header row */
 .announcer {
   position: absolute;
   top: calc(var(--safe-top) + 60px);
@@ -16,6 +16,7 @@
   font-size: 14px;
   font-weight: 500;
   line-height: 1.4;
+  text-align: left;
   animation: announcer-in 280ms var(--ease-out) both;
 }
 

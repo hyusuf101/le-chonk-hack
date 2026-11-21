@@ -77,7 +77,7 @@ export function Ticket({ row, next, nowMs, student, liked, onBack, onNext, onLik
             type="button"
             className="ticket-circle"
             aria-label="Play voiceover"
-            onClick={() => playClip({ url: row.voiceover_url! })}
+            onClick={() => playClip(row.voiceover_url!)}
           >
             <Volume2 size={20} strokeWidth={2} aria-hidden="true" />
           </button>

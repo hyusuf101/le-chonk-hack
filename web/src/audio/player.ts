@@ -1,16 +1,8 @@
 import { TTS_SAMPLE_RATE } from './config';
 import { getAudioContext } from './context';
 
-export interface Clip {
-  /** raw PCM16 mono 24 kHz; empty or unreachable plays the station chime instead */
-  url: string;
-  /** called when the clip starts, with its length so captions can match it */
-  onStart?: (durationMs: number) => void;
-  onEnd?: () => void;
-}
-
 const MAX_QUEUED = 2;
-const queue: Clip[] = [];
+const queue: string[] = [];
 let playing = false;
 
 async function load(ctx: AudioContext, url: string): Promise<AudioBuffer> {
@@ -24,64 +16,30 @@ async function load(ctx: AudioContext, url: string): Promise<AudioBuffer> {
   return buffer;
 }
 
-/** Two soft falling notes, like a station's attention chime. */
-function chime(ctx: AudioContext): AudioBuffer {
-  const rate = ctx.sampleRate;
-  const notes = [
-    { f: 784, start: 0, len: 0.42 },
-    { f: 587, start: 0.36, len: 0.6 },
-  ];
-  const buffer = ctx.createBuffer(1, Math.ceil(rate * 1.0), rate);
-  const out = buffer.getChannelData(0);
-  for (const n of notes) {
-    const s0 = Math.floor(n.start * rate);
-    const len = Math.floor(n.len * rate);
-    for (let i = 0; i < len && s0 + i < out.length; i++) {
-      const t = i / rate;
-      const env = Math.min(1, t / 0.01) * Math.exp(-t * 5);
-      out[s0 + i] += 0.22 * env * (Math.sin(2 * Math.PI * n.f * t) + 0.3 * Math.sin(4 * Math.PI * n.f * t));
-    }
-  }
-  return buffer;
-}
-
 async function playNext(): Promise<void> {
-  const clip = queue.shift();
-  if (!clip) {
+  const url = queue.shift();
+  if (!url) {
     playing = false;
     return;
   }
   playing = true;
   const ctx = getAudioContext();
-  const finish = () => {
-    clip.onEnd?.();
-    void playNext();
-  };
-
-  // Audio not unlocked yet (no tap since load): still show the caption, just silently.
-  if (ctx.state !== 'running') {
-    clip.onStart?.(0);
-    window.setTimeout(finish, 0);
-    return;
-  }
-
-  let buffer: AudioBuffer;
   try {
-    buffer = clip.url ? await load(ctx, clip.url) : chime(ctx);
+    if (ctx.state !== 'running') await ctx.resume();
+    const src = ctx.createBufferSource();
+    src.buffer = await load(ctx, url);
+    src.connect(ctx.destination);
+    src.onended = () => void playNext();
+    src.start();
   } catch {
-    buffer = chime(ctx);
+    // Missing or unplayable clip: stay quiet rather than make a noise that means nothing.
+    void playNext();
   }
-  const src = ctx.createBufferSource();
-  src.buffer = buffer;
-  src.connect(ctx.destination);
-  src.onended = finish;
-  clip.onStart?.(buffer.duration * 1000);
-  src.start();
 }
 
-/** Plays clips one at a time; drops new ones while more than two are waiting. */
-export function playClip(clip: Clip): void {
-  if (queue.length >= MAX_QUEUED) return;
-  queue.push(clip);
+/** Plays raw PCM16 mono 24 kHz clips (e.g. a ticket's voiceover) one at a time; drops extras. */
+export function playClip(url: string): void {
+  if (!url || queue.length >= MAX_QUEUED) return;
+  queue.push(url);
   if (!playing) void playNext();
 }
