@@ -4,8 +4,10 @@ Guidance for AI coding agents (Claude Code, Codex, Mistral Vibe, Cursor, etc.) w
 
 ## Project
 
-`le-chonk` is a project for the Mistral Vibe Hackathon 2026 (London).
+The product is called **Vybe**, a play on Mistral Vibe. It is being built for the Mistral Vibe Hackathon 2026 (London).
 
+- Product name: **Vybe**. Use this name in UI copy, docs, issues and PRs.
+- Repository: `le-chonk` (the repo name stays as is)
 - Remote: `https://github.com/jxcg/le-chonk`
 - Default branch: `main`
 
