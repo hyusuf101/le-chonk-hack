@@ -3,7 +3,7 @@ import type { TalkPurpose } from '../contract';
 import { TALK_MAX_MS } from '../audio/config';
 import { unlockAudio } from '../audio/context';
 import { startMic, type MicSession } from '../audio/mic';
-import { isMock } from '../net/socket';
+import { isMock } from '../net/endpoints';
 import { useStore } from './store';
 
 export type TalkPhase = 'idle' | 'listening' | 'thinking';

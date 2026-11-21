@@ -1,8 +1,28 @@
 import type { ClientMessage, JoinMsg, LocationMsg, PrefsMsg, ServerMessage } from '../contract';
+import { serverUrl } from './endpoints';
 import type { ConnStatus, VybeSocket } from './socket';
 
 const BASE_DELAY_MS = 500;
 const MAX_DELAY_MS = 15_000;
+
+/** Point the server's relative photo/audio links at the server, wherever the app itself is hosted. */
+function withServerUrls(msg: ServerMessage): ServerMessage {
+  switch (msg.type) {
+    case 'board':
+      return {
+        ...msg,
+        rows: msg.rows.map((r) => ({
+          ...r,
+          photo_url: r.photo_url && serverUrl(r.photo_url),
+          voiceover_url: r.voiceover_url && serverUrl(r.voiceover_url),
+        })),
+      };
+    case 'announce':
+      return { ...msg, url: serverUrl(msg.url) };
+    default:
+      return msg;
+  }
+}
 
 function isServerMessage(data: unknown): data is ServerMessage {
   return typeof data === 'object' && data !== null && typeof (data as { type?: unknown }).type === 'string';
@@ -68,7 +88,8 @@ export function createRealSocket(url: string): VybeSocket {
       if (!isServerMessage(parsed)) return;
       // Rejoin the same room after a drop.
       if (parsed.type === 'joined' && lastJoin) lastJoin = { ...lastJoin, room: parsed.room };
-      listeners.forEach((cb) => cb(parsed));
+      const msg = withServerUrls(parsed);
+      listeners.forEach((cb) => cb(msg));
     };
 
     // onerror is always followed by onclose, which handles the retry.

@@ -1,5 +1,6 @@
 import type { ClientMessage, ServerMessage } from '../contract';
 import { createMockSocket } from './mockSocket';
+import { isMock, WS_URL } from './endpoints';
 import { createRealSocket } from './realSocket';
 
 export type ConnStatus = 'connecting' | 'open' | 'reconnecting';
@@ -14,10 +15,6 @@ export interface VybeSocket {
   close(): void;
 }
 
-export const isMock =
-  new URLSearchParams(location.search).has('mock') || import.meta.env.VITE_MOCK === '1';
-
 export function createSocket(): VybeSocket {
-  if (isMock) return createMockSocket();
-  return createRealSocket(`${location.origin.replace(/^http/, 'ws')}/ws`);
+  return isMock ? createMockSocket() : createRealSocket(WS_URL);
 }

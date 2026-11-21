@@ -15,8 +15,9 @@ VYBE_SERVER=http://localhost:8000 npm run dev   # proxies /ws to your server (de
 
 - Open `http://localhost:5173/?reset` (the `reset` clears saved state so you start from the start screen).
 - `?mock` swaps the socket for an in-browser fake server, which is handy for comparing behaviour.
-- Production: serve `web/dist` (from `npm run build`) on the same origin as the socket, or put both behind
-  one reverse proxy. The client always connects to `ws(s)://<same host>/ws`.
+- Production: Vercel (frontend) + Railway (backend), see [DEPLOY.md](DEPLOY.md). The client connects to
+  `VITE_WS_URL` if set, otherwise `ws(s)://<same host>/ws`. Relative `photo_url`, `voiceover_url` and
+  `announce.url` values are resolved against the backend's address, so `/img/x.webp` just works.
 
 ## Transport
 
