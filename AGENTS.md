@@ -29,7 +29,10 @@ Do not start work on a change that has no issue.
 ### 2. Branching
 
 - Never commit directly to `main`.
-- Branch name: `<type>/<issue-number>-<short-slug>`, e.g. `feat/12-image-upload`.
+- Every branch must be named `feature/Issue-<N>`, where `<N>` is the GitHub issue number, e.g. `feature/Issue-1`, `feature/Issue-12`. Use this format for every kind of change (features, fixes, docs, chores); nothing else goes in the name.
+  ```sh
+  git checkout -b feature/Issue-12
+  ```
 
 ### 3. Commits
 
@@ -81,6 +84,6 @@ Do not add any attribution footer (e.g. "Generated with ...") to the PR body.
 ## Checklist before opening a PR
 
 - [ ] A GitHub issue exists and is referenced
-- [ ] Work is on a feature branch, not `main`
+- [ ] Work is on a `feature/Issue-<N>` branch, not `main`
 - [ ] Commits follow Conventional Commits and have no AI co-author trailers
 - [ ] PR body has exactly 3 bullets (1-2 sentences each) and ends with `Addresses GH issue: #N`
