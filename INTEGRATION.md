@@ -28,7 +28,7 @@ VYBE_SERVER=http://localhost:8000 npm run dev   # proxies /ws to your server (de
   the last `join` (with the `room` you gave it in `joined`) and the last `prefs`. Treat a repeated `join` for
   an existing room as "resume".
 
-All types are in `web/src/contract.ts`. Times are **ISO 8601 strings with a timezone** (e.g.
+All types are in [`web/src/contract.ts`](web/src/contract.ts). Times are **ISO 8601 strings with a timezone** (e.g.
 `2026-11-21T19:30:00Z`). The UI shows them in Europe/London.
 
 ## Phone → server
@@ -100,6 +100,32 @@ socket. If that's hard, tell us and the client will send `join` as soon as the s
 **Reason icons the client knows** (anything else falls back to a neutral icon):
 `Footprints, Wallet, Laugh, Utensils, Clock, Music, Sparkles, Trophy, Users, Film, CloudRain, Palette, Dices,
 Coffee, MicVocal, Star, Ticket, MapPin, Heart, Beer, Moon, Zap`
+
+### Photos (`photo_url` + `colors`)
+
+Photos make the hero cards and tickets. A bad photo is worse than none: with no photo the UI falls
+back to a designed poster (big time on the venue colour), so only send a photo you're confident in.
+
+1. **Source, in order:**
+   1. The listing's own share image: `og:image` (or `twitter:image`) on the `source_url` page. Usually a
+      deliberate shot of that exact event/venue.
+   2. Fallback: a venue photo from Google Places Photos (show the required attribution) or Foursquare
+      Places, matched by venue name + lat/lng.
+   3. No stock or AI-generated images: they'd show a place that isn't the real one.
+2. **Quality gate.** Reject anything that's not landscape, under ~800 px wide, or mostly text/logo/menu/
+   flyer. A quick vision check works well, e.g. Pixtral: *"Is this an atmospheric photo of the place itself,
+   with no large text or logos? Answer yes/no."*
+3. **Process once, serve yourself.** Resize/crop to ~800×600 WebP, cache it, and serve it from **your own
+   origin** (e.g. `/img/<id>.webp`). Fast on phones, stable URLs, and no hotlinking.
+4. **Send `colors` with it.** Compute the venue colours from the same image server-side and send
+   `colors: {deep, soft, light}` (hex). The client's rule: take the image's average colour, convert to
+   OKLCH, keep the hue, and clamp: deep `L 0.30, C ≤ 0.055` · soft `L 0.42, C ≤ 0.055` · light `L 0.89, C ≤ 0.03`.
+   If you skip this, the client extracts it itself, but then the image must allow CORS
+   (`Access-Control-Allow-Origin`), otherwise it falls back to category colours.
+5. If none of the above gives a good image: `photo_url: null`. The poster looks intentional.
+
+For the mock/demo, drop ~10 landscape, text-free photos (e.g. Unsplash, free licence) into
+`web/public/mock/` named after the mock items.
 
 ### Tag vocabulary (suggestions shown in the UI; other tags are fine and appear as chips)
 
