@@ -15,6 +15,13 @@ import { mergeChips, toPrefs, type Vybe } from '../lib/vybe';
 
 export type Screen = 'start' | 'loading' | 'board';
 
+/** The ticket being viewed and the screen point it opened from (the colour expands from there). */
+export interface OpenTicket {
+  id: string;
+  x: number;
+  y: number;
+}
+
 export interface Toast {
   id: number;
   text: string;
@@ -35,6 +42,9 @@ export interface State {
   /** bumps on every `chips` message so screens can react to "the server answered" */
   chipsSeq: number;
   toasts: Toast[];
+  ticket: OpenTicket | null;
+  /** rows the user bookmarked this session */
+  liked: string[];
 }
 
 export type Action =
@@ -43,7 +53,10 @@ export type Action =
   | { type: 'set_vybe'; vybe: Vybe }
   | { type: 'go'; screen: Screen }
   | { type: 'clear_transcript' }
-  | { type: 'dismiss_toast'; id: number };
+  | { type: 'dismiss_toast'; id: number }
+  | { type: 'open_ticket'; ticket: OpenTicket }
+  | { type: 'close_ticket' }
+  | { type: 'toggle_like'; id: string };
 
 function init(): State {
   const saved = loadSaved();
@@ -59,6 +72,8 @@ function init(): State {
     transcript: '',
     chipsSeq: 0,
     toasts: [],
+    ticket: null,
+    liked: [],
   };
 }
 
@@ -80,6 +95,17 @@ function reducer(state: State, action: Action): State {
       return { ...state, transcript: '' };
     case 'dismiss_toast':
       return { ...state, toasts: state.toasts.filter((t) => t.id !== action.id) };
+    case 'open_ticket':
+      return { ...state, ticket: action.ticket };
+    case 'close_ticket':
+      return { ...state, ticket: null };
+    case 'toggle_like':
+      return {
+        ...state,
+        liked: state.liked.includes(action.id)
+          ? state.liked.filter((id) => id !== action.id)
+          : [...state.liked, action.id],
+      };
     case 'server': {
       const { msg } = action;
       switch (msg.type) {

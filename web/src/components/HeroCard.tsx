@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, type MouseEvent } from 'react';
 import type { Pick, Row } from '../contract';
 import { formatPrice } from '../lib/format';
 import { formatHM, MINUTE, minutesUntil } from '../lib/time';
-import { venueColors, venueStyle } from '../lib/venueColors';
+import { useVenueColors, venueStyle } from '../lib/venueColors';
 import { FuseLine } from './FuseLine';
 import { Grain } from './Grain';
 import { RollingNumber } from './RollingNumber';
@@ -21,6 +21,7 @@ interface Props {
   row: Row;
   nowMs: number;
   student: boolean;
+  onOpen: (row: Row, e: MouseEvent<HTMLElement>) => void;
 }
 
 function LeaveText({ row, nowMs }: { row: Row; nowMs: number }) {
@@ -35,18 +36,21 @@ function LeaveText({ row, nowMs }: { row: Row; nowMs: number }) {
   );
 }
 
-export function HeroCard({ row, nowMs, student }: Props) {
+export function HeroCard({ row, nowMs, student, onOpen }: Props) {
   const price = formatPrice(row, student);
   const fuse = (Date.parse(row.leave_by) - nowMs) / (FUSE_WINDOW_MIN * MINUTE);
   // Photo cards only once the image has actually loaded; otherwise the poster layout.
   const [photo, setPhoto] = useState<'loading' | 'ok' | 'failed'>(row.photo_url ? 'loading' : 'failed');
   const reason = row.reasons[0]?.text;
+  const colors = useVenueColors(row);
 
   return (
     <button
       className={`hero-card${photo === 'ok' ? ' hero-card--photo' : ''}`}
       type="button"
-      style={venueStyle(venueColors(row))}
+      style={venueStyle(colors)}
+      data-row-id={row.id}
+      onClick={(e) => onOpen(row, e)}
     >
       {row.photo_url && photo !== 'failed' && (
         <span className="hero-card-photo" aria-hidden="true">

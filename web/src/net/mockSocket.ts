@@ -66,6 +66,7 @@ export function createMockSocket(): VybeSocket {
   let prefs: Prefs = DEFAULT_PREFS;
   let intervals: number[] = [];
   let joined = false;
+  const hidden = new Set<string>();
   let talkTimer: number | undefined;
   let spoken = 0;
 
@@ -112,7 +113,7 @@ export function createMockSocket(): VybeSocket {
   }
 
   function board(): BoardMsg {
-    const rows = MOCK_ITEMS.filter(matches)
+    const rows = MOCK_ITEMS.filter((item) => !hidden.has(item.id) && matches(item))
       .map((item) => toRow(item, clock))
       .filter((r) => Date.parse(r.leave_by) > clock - DEPARTED_KEEP_MIN * MINUTE)
       .sort((a, b) => Date.parse(a.leave_by) - Date.parse(b.leave_by));
@@ -174,6 +175,18 @@ export function createMockSocket(): VybeSocket {
           emit({ type: 'transcript', text: MOCK_SENTENCE, final: true });
           setTimeout(() => emit(MOCK_SENTENCE_CHIPS), THINK_MS);
           break;
+        case 'feedback': {
+          const item = MOCK_ITEMS.find((i) => i.id === msg.item_id);
+          if (!item) break;
+          if (msg.kind === 'skip') {
+            hidden.add(item.id);
+            emit({ type: 'note', text: `Hidden ${item.name}. We\u2019ll show fewer like it.` });
+            emit(board());
+          } else {
+            emit({ type: 'note', text: `Saved ${item.name}` });
+          }
+          break;
+        }
         case 'talk_text':
           setTimeout(() => emit(chipsFromText(msg.text)), THINK_MS);
           break;

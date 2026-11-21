@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, type MouseEvent } from 'react';
 import type { Row } from '../contract';
 import { dayWord, MINUTE } from '../lib/time';
 import { DepartureRow } from './DepartureRow';
@@ -7,12 +7,13 @@ import './DepartureList.css';
 const SOON_MIN = 30;
 /** A departed row shows "Departed" this long, then collapses away. */
 const DEPARTED_SHOW_MS = 3000;
-const COLLAPSE_MS = 400;
+const COLLAPSE_MS = 320;
 
 interface Props {
   rows: Row[];
   nowMs: number;
   wallMs: number;
+  onOpen: (row: Row, e: MouseEvent<HTMLElement>) => void;
 }
 
 type Phase = 'live' | 'collapsing' | 'gone';
@@ -36,7 +37,7 @@ function useDepartedPhase(rows: Row[], wallMs: number): (row: Row) => Phase {
   };
 }
 
-export function DepartureList({ rows, nowMs, wallMs }: Props) {
+export function DepartureList({ rows, nowMs, wallMs, onOpen }: Props) {
   const phaseOf = useDepartedPhase(rows, wallMs);
   const rest = rows
     .filter((r) => !r.pick)
@@ -57,7 +58,7 @@ export function DepartureList({ rows, nowMs, wallMs }: Props) {
             {group.items.map(({ row, phase }) => (
               <li key={row.id} className={`dlist-item${phase === 'collapsing' ? ' is-collapsing' : ''}`}>
                 <div className="dlist-item-inner">
-                  <DepartureRow row={row} nowMs={nowMs} />
+                  <DepartureRow row={row} nowMs={nowMs} onOpen={onOpen} />
                 </div>
               </li>
             ))}

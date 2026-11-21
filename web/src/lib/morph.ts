@@ -2,7 +2,7 @@
 // Ghost elements are fixed-position stand-ins that fly between two measured shapes and then remove
 // themselves, so the real React tree can switch layout instantly underneath.
 
-export const MORPH_MS = 440;
+export const MORPH_MS = 340;
 export const MORPH_EASE = 'cubic-bezier(0.32, 0.72, 0, 1)';
 
 export interface Shape {
@@ -48,7 +48,7 @@ const frame = (s: Shape): Keyframe => ({
 });
 
 /** Resolves when the animation ends, or after a grace period if the page stops rendering frames. */
-const done = (a: Animation) => {
+export const whenDone = (a: Animation): Promise<void> => {
   const timing = a.effect?.getTiming();
   const total = Number(timing?.duration ?? 0) + Number(timing?.delay ?? 0);
   return Promise.race([
@@ -109,7 +109,7 @@ export function ghost(from: Shape, to: Shape, { icon, opacity }: GhostOptions = 
           ];
     animations.push(el.animate(frames, { ...timing, easing: 'linear' }));
   }
-  return Promise.all(animations.map(done)).then(() => el.remove());
+  return Promise.all(animations.map(whenDone)).then(() => el.remove());
 }
 
 /**
@@ -139,7 +139,7 @@ export function fadeOutCopy(el: HTMLElement, prepare?: (copy: HTMLElement) => vo
     easing: 'ease-out',
     fill: 'forwards',
   });
-  void done(a).then(() => copy.remove());
+  void whenDone(a).then(() => copy.remove());
 }
 
 /** FLIP: the element has already moved; animate it from where it used to be. */

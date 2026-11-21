@@ -3,7 +3,7 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  animation: board-in 360ms ease both;
+  animation: board-in 220ms ease-out both;
 }
 
 @keyframes board-in {

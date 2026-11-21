@@ -7,10 +7,10 @@ import { Wordmark } from './Wordmark';
 import './LoadingScreen.css';
 
 /** Long enough to read a line and a half; never padded beyond that once the board is ready. */
-const MIN_SHOW_MS = 2000;
-const LINE_MS = 1700;
-const GLIDE_MS = 720;
-const EXIT_MS = 240;
+const MIN_SHOW_MS = 1500;
+const LINE_MS = 1300;
+const GLIDE_MS = 520;
+const EXIT_MS = 180;
 
 const LINES = [
   'Looking around you',
@@ -38,7 +38,7 @@ function StatusLine({ index }: { index: number }) {
       )}
       <span key={`in${s.cur}`} className="status-text">
         {LINES[s.cur].split(' ').map((word, i) => (
-          <span key={i} className="status-word" style={{ animationDelay: `${140 + i * 75}ms` }}>
+          <span key={i} className="status-word" style={{ animationDelay: `${80 + i * 55}ms` }}>
             {word}
           </span>
         ))}

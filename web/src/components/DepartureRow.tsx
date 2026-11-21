@@ -1,21 +1,30 @@
+import type { MouseEvent } from 'react';
 import type { Row } from '../contract';
 import { formatPrice } from '../lib/format';
 import { formatHM, leaveHint } from '../lib/time';
-import { venueColors, venueStyle } from '../lib/venueColors';
+import { useVenueColors, venueStyle } from '../lib/venueColors';
 import { StatusText } from './StatusText';
 import './DepartureRow.css';
 
 interface Props {
   row: Row;
   nowMs: number;
+  onOpen: (row: Row, e: MouseEvent<HTMLElement>) => void;
 }
 
-export function DepartureRow({ row, nowMs }: Props) {
+export function DepartureRow({ row, nowMs, onOpen }: Props) {
   // The list keeps prices bare; the hero card carries the "student" qualifier.
   const price = formatPrice(row, false);
+  const colors = useVenueColors(row);
 
   return (
-    <button className="drow" type="button" style={venueStyle(venueColors(row))}>
+    <button
+      className="drow"
+      type="button"
+      style={venueStyle(colors)}
+      data-row-id={row.id}
+      onClick={(e) => onOpen(row, e)}
+    >
       <span className="drow-time tnum">{formatHM(row.departure_time)}</span>
       <span className="drow-body">
         <span className="drow-line">

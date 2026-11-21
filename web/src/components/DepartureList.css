@@ -27,9 +27,9 @@
   grid-template-rows: 1fr;
   opacity: 1;
   transition:
-    grid-template-rows 400ms var(--ease-out),
-    opacity 300ms ease,
-    border-color 300ms ease;
+    grid-template-rows 320ms var(--ease-out),
+    opacity 220ms ease,
+    border-color 220ms ease;
 }
 
 .dlist-item + .dlist-item {

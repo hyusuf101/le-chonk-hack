@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, type MouseEvent } from 'react';
 import type { Pick, Row } from '../contract';
 import { HeroCard } from './HeroCard';
 import './HeroCarousel.css';
@@ -10,9 +10,10 @@ interface Props {
   rows: Row[];
   nowMs: number;
   student: boolean;
+  onOpen: (row: Row, e: MouseEvent<HTMLElement>) => void;
 }
 
-export function HeroCarousel({ rows, nowMs, student }: Props) {
+export function HeroCarousel({ rows, nowMs, student, onOpen }: Props) {
   const picks = ORDER.flatMap((pick) => rows.filter((r) => r.pick === pick));
   const trackRef = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
@@ -29,7 +30,7 @@ export function HeroCarousel({ rows, nowMs, student }: Props) {
     <section className="hero" aria-label="Your picks">
       <div ref={trackRef} className="hero-track" onScroll={onScroll}>
         {picks.map((row) => (
-          <HeroCard key={row.id} row={row} nowMs={nowMs} student={student} />
+          <HeroCard key={row.id} row={row} nowMs={nowMs} student={student} onOpen={onOpen} />
         ))}
       </div>
       {picks.length > 1 && (

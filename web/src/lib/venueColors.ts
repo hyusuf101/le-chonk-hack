@@ -1,4 +1,6 @@
-import type { CSSProperties } from 'react';
+import { useEffect, useReducer, type CSSProperties } from 'react';
+import { clampChroma, converter, formatHex } from 'culori';
+import { FastAverageColor } from 'fast-average-color';
 import type { Category, Row, VenueColors } from '../contract';
 
 // A touch richer than the original spec values, which read muddy on the dark station chrome.
@@ -12,9 +14,62 @@ export const CATEGORY_COLORS: Record<Category, VenueColors> = {
   other: { deep: '#33334A', soft: '#53536E', light: '#E5E2F1' },
 };
 
-/** Server colours first, then category fallback. (Photo extraction lands in P3.) */
-export function venueColors(row: Row): VenueColors {
-  return row.colors ?? CATEGORY_COLORS[row.category];
+const toOklch = converter('oklch');
+
+function tone(base: { c: number; h?: number }, l: number, maxChroma: number): string {
+  const color = clampChroma({ mode: 'oklch', l, c: Math.min(base.c, maxChroma), h: base.h }, 'oklch');
+  return formatHex(color) ?? '#2e2e36';
+}
+
+/** A photo's average colour, kept to its hue but clamped into VYBE's muted range. */
+export function worldFromColor(hex: string): VenueColors | null {
+  const o = toOklch(hex);
+  if (!o) return null;
+  return { deep: tone(o, 0.3, 0.055), soft: tone(o, 0.42, 0.055), light: tone(o, 0.89, 0.03) };
+}
+
+/** Lower a colour's OKLCH lightness by `amount` (used to darken poster tickets near leave time). */
+export function darken(hex: string, amount: number): string {
+  const o = toOklch(hex);
+  if (!o || amount <= 0) return hex;
+  return formatHex({ ...o, l: Math.max(0, o.l - amount) }) ?? hex;
+}
+
+// Photo extraction is async and cached per URL for the whole session.
+const fac = new FastAverageColor();
+const pending = new Map<string, Promise<void>>();
+const extracted = new Map<string, VenueColors | null>();
+
+function extract(url: string): Promise<void> {
+  let p = pending.get(url);
+  if (!p) {
+    p = fac
+      .getColorAsync(url, { crossOrigin: 'anonymous' })
+      .then((result) => worldFromColor(result.hex))
+      .catch(() => null) // CORS or a broken image: fall back to the category colours
+      .then((colors) => {
+        extracted.set(url, colors);
+      });
+    pending.set(url, p);
+  }
+  return p;
+}
+
+/** Server colours → colours extracted from the photo → category fallback. */
+export function useVenueColors(row: Row): VenueColors {
+  const url = row.colors ? null : row.photo_url;
+  const [, refresh] = useReducer((n: number) => n + 1, 0);
+
+  useEffect(() => {
+    if (!url || extracted.has(url)) return;
+    let alive = true;
+    void extract(url).then(() => alive && refresh());
+    return () => {
+      alive = false;
+    };
+  }, [url]);
+
+  return row.colors ?? (url ? extracted.get(url) : null) ?? CATEGORY_COLORS[row.category];
 }
 
 /** CSS custom properties that put a subtree into the venue's colour world. */

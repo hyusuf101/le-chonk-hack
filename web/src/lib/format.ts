@@ -30,3 +30,20 @@ export function formatPrice(row: Row, student: boolean): string | null {
   const base = pounds(row.your_price);
   return student && row.was_price !== null ? `${base} student` : base;
 }
+
+/** "just now", "4 min ago", "2 h ago" relative to the board's clock. */
+export function ago(iso: string, nowMs: number): string {
+  const mins = Math.floor((nowMs - Date.parse(iso)) / 60_000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} min ago`;
+  return `${Math.floor(mins / 60)} h ago`;
+}
+
+/** "timeout.com" from a full URL, or null if it can't be parsed. */
+export function hostname(url: string): string | null {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return null;
+  }
+}

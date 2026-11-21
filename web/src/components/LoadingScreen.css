@@ -39,6 +39,7 @@
 
 .orb {
   position: relative;
+  will-change: transform;
   display: grid;
   place-items: center;
   width: 100%;
@@ -61,6 +62,7 @@
 /* Rings ripple out continuously, staggered a third of a cycle apart */
 .orb-ring {
   position: absolute;
+  will-change: transform, opacity;
   inset: 0;
   border: 1.5px solid var(--accent);
   border-radius: 50%;
@@ -88,7 +90,7 @@
   line-height: 1.15;
   letter-spacing: -0.01em;
   color: var(--text);
-  animation: loading-rise 600ms var(--ease-out) 120ms both;
+  animation: loading-rise 400ms var(--ease-out) 60ms both;
 }
 
 .status-line {
@@ -112,11 +114,11 @@
 
 .status-word {
   display: inline-block;
-  animation: word-in 520ms var(--ease-out) both;
+  animation: word-in 360ms var(--ease-out) both;
 }
 
 .status-text--out {
-  animation: line-out 320ms ease-in both;
+  animation: line-out 220ms ease-in both;
 }
 
 /* ── Leaving: words go first, the orb stays for the hand-off ── */
@@ -124,7 +126,7 @@
 .loading.is-leaving .loading-title,
 .loading.is-leaving .status-line,
 .loading.is-leaving .orb-ring {
-  transition: opacity 220ms ease;
+  transition: opacity 160ms ease;
   opacity: 0;
 }
 
