@@ -31,3 +31,28 @@
 .bottombar-talk:active {
   transform: scale(0.98);
 }
+
+/* Listening: the fade drifts slowly, like the start screen's mic */
+.bottombar-talk--listening {
+  background-size: 220% 220%;
+  animation: talk-drift 3s ease-in-out infinite alternate;
+}
+
+.bottombar-talk--thinking {
+  opacity: 0.85;
+}
+
+@keyframes talk-drift {
+  from {
+    background-position: 0% 50%;
+  }
+  to {
+    background-position: 100% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bottombar-talk--listening {
+    animation: none;
+  }
+}

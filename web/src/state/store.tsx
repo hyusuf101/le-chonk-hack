@@ -8,7 +8,7 @@ import {
   type Dispatch,
   type ReactNode,
 } from 'react';
-import type { BoardMsg, ClientMessage, ServerMessage } from '../contract';
+import type { AnnounceMsg, BoardMsg, ClientMessage, Place, ServerMessage } from '../contract';
 import { createSocket, type ConnStatus, type VybeSocket } from '../net/socket';
 import { loadSaved, save } from '../lib/storage';
 import { mergeChips, toPrefs, type Vybe } from '../lib/vybe';
@@ -41,8 +41,16 @@ export interface State {
   transcript: string;
   /** bumps on every `chips` message so screens can react to "the server answered" */
   chipsSeq: number;
+  /** bumps on every `note`: on the board a spoken command is answered with one */
+  noteSeq: number;
+  /** latest station announcement; `seq` changes for each new one */
+  announcement: { seq: number; msg: AnnounceMsg } | null;
   toasts: Toast[];
   ticket: OpenTicket | null;
+  /** where the board is measured from; null = the server's default area */
+  place: Place | null;
+  /** the phone said no (or couldn't) when asked for its location */
+  locationDenied: boolean;
   /** rows the user bookmarked this session */
   liked: string[];
 }
@@ -56,7 +64,10 @@ export type Action =
   | { type: 'dismiss_toast'; id: number }
   | { type: 'open_ticket'; ticket: OpenTicket }
   | { type: 'close_ticket' }
-  | { type: 'toggle_like'; id: string };
+  | { type: 'toggle_like'; id: string }
+  | { type: 'toast'; text: string }
+  | { type: 'set_place'; place: Place }
+  | { type: 'location_denied' };
 
 function init(): State {
   const saved = loadSaved();
@@ -71,9 +82,13 @@ function init(): State {
     vybe: saved.vybe,
     transcript: '',
     chipsSeq: 0,
+    noteSeq: 0,
+    announcement: null,
     toasts: [],
     ticket: null,
     liked: [],
+    place: saved.place,
+    locationDenied: false,
   };
 }
 
@@ -95,6 +110,12 @@ function reducer(state: State, action: Action): State {
       return { ...state, transcript: '' };
     case 'dismiss_toast':
       return { ...state, toasts: state.toasts.filter((t) => t.id !== action.id) };
+    case 'set_place':
+      return { ...state, place: action.place, locationDenied: false };
+    case 'location_denied':
+      return { ...state, locationDenied: true };
+    case 'toast':
+      return { ...state, toasts: [...state.toasts, { id: ++toastId, text: action.text }] };
     case 'open_ticket':
       return { ...state, ticket: action.ticket };
     case 'close_ticket':
@@ -116,7 +137,13 @@ function reducer(state: State, action: Action): State {
         case 'transcript':
           return { ...state, transcript: msg.text };
         case 'note':
-          return { ...state, toasts: [...state.toasts, { id: ++toastId, text: msg.text }] };
+          return {
+            ...state,
+            noteSeq: state.noteSeq + 1,
+            toasts: [...state.toasts, { id: ++toastId, text: msg.text }],
+          };
+        case 'announce':
+          return { ...state, announcement: { seq: (state.announcement?.seq ?? 0) + 1, msg } };
         case 'chips':
           return { ...state, vybe: mergeChips(state.vybe, msg), chipsSeq: state.chipsSeq + 1 };
         default:
@@ -130,6 +157,7 @@ interface Store {
   state: State;
   dispatch: Dispatch<Action>;
   send: (msg: ClientMessage) => void;
+  sendAudio: (frame: ArrayBuffer) => void;
   /** Sends join + current prefs once per connection. */
   join: () => void;
 }
@@ -144,13 +172,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   latest.current = state;
 
   const send = useCallback((msg: ClientMessage) => socketRef.current?.send(msg), []);
+  const sendAudio = useCallback((frame: ArrayBuffer) => socketRef.current?.sendAudio(frame), []);
 
   const join = useCallback(() => {
     if (joinedRef.current) return;
     joinedRef.current = true;
-    const { room, vybe } = latest.current;
+    const { room, vybe, place } = latest.current;
     send({ type: 'join', room });
     send({ type: 'prefs', ...toPrefs(vybe) });
+    if (place) send({ type: 'location', ...place });
   }, [send]);
 
   useEffect(() => {
@@ -169,17 +199,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [join]);
 
   // Every change to the vybe goes to the server (and survives a reload).
-  const { vybe, room, onboarded } = state;
+  const { vybe, room, onboarded, place } = state;
   useEffect(() => {
     send({ type: 'prefs', ...toPrefs(vybe) });
   }, [vybe, send]);
 
   useEffect(() => {
-    save({ vybe, room, onboarded });
-  }, [vybe, room, onboarded]);
+    save({ vybe, room, onboarded, place });
+  }, [vybe, room, onboarded, place]);
 
   return (
-    <StoreContext.Provider value={{ state, dispatch, send, join }}>
+    <StoreContext.Provider value={{ state, dispatch, send, sendAudio, join }}>
       {children}
     </StoreContext.Provider>
   );

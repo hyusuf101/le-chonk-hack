@@ -8,6 +8,8 @@ const server = process.env.VYBE_SERVER ?? 'http://localhost:8000';
 export default defineConfig({
   server: {
     host: true,
+    // Phone testing over HTTPS tunnels (the mic needs HTTPS): `cloudflared tunnel --url http://localhost:5173`
+    allowedHosts: ['.trycloudflare.com', '.ngrok-free.app', '.ngrok.app'],
     proxy: {
       '/ws': { target: server, ws: true, changeOrigin: true },
     },

@@ -23,10 +23,37 @@
 
 .board-sub {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  margin-top: 6px;
+  color: var(--text-2);
+}
+
+/* The area reads as text but is a 44px target that opens the location sheet */
+.board-area {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  margin-left: -2px;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.board-area svg {
+  color: var(--muted);
+  transition: transform var(--dur-fast) ease;
+}
+
+.board-area:active svg {
+  transform: translateY(2px);
+}
+
+.board-rain {
+  display: inline-flex;
   align-items: center;
   gap: 8px;
-  margin-top: 10px;
-  color: var(--text-2);
 }
 
 

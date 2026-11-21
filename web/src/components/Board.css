@@ -12,9 +12,18 @@
   }
 }
 
+.board-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .board-scroll {
   flex: 1;
   min-height: 0;
+  transition: opacity 240ms ease;
   display: flex;
   flex-direction: column;
   overflow-x: hidden;
@@ -42,4 +51,10 @@
 
 .board-scroll > * {
   flex-shrink: 0;
+}
+
+/* Talking: the board steps back so your words take the stage */
+.board.is-talking .board-scroll {
+  opacity: 0.4;
+  pointer-events: none;
 }

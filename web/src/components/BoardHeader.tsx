@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef } from 'react';
-import { UserPlus } from 'lucide-react';
+import { ChevronDown, UserPlus } from 'lucide-react';
 import type { BoardMsg } from '../contract';
 import { dayWord, formatHM } from '../lib/time';
 import { handoff } from '../lib/handoff';
@@ -12,6 +12,7 @@ import './BoardHeader.css';
 interface Props {
   board: BoardMsg | null;
   nowMs: number;
+  onArea: () => void;
 }
 
 function rainText(rainFrom: string | null, nowMs: number): string | null {
@@ -22,7 +23,7 @@ function rainText(rainFrom: string | null, nowMs: number): string | null {
 /** Size of the lavender dot the loading orb shrinks to before it becomes the count. */
 const DOT_PX = 10;
 
-export function BoardHeader({ board, nowMs }: Props) {
+export function BoardHeader({ board, nowMs, onArea }: Props) {
   const rain = board ? rainText(board.weather.rain_from, nowMs) : null;
   const countRef = useRef<HTMLSpanElement>(null);
 
@@ -67,13 +68,18 @@ export function BoardHeader({ board, nowMs }: Props) {
             </span>{' '}
             you can still make {dayWord(nowMs)}
           </h1>
-          <p className="t-secondary board-sub">
-            {rain && <RainMark />}
-            <span>
+          <div className="t-secondary board-sub">
+            <button type="button" className="board-area" onClick={onArea} aria-label={`Starting from ${board.area}. Change`}>
               {board.area}
-              {rain && `, ${rain}`}
-            </span>
-          </p>
+              <ChevronDown size={16} strokeWidth={2} aria-hidden="true" />
+            </button>
+            {rain && (
+              <span className="board-rain">
+                <RainMark />
+                {rain.charAt(0).toUpperCase() + rain.slice(1)}
+              </span>
+            )}
+          </div>
         </>
       )}
     </header>

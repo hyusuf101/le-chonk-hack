@@ -1,22 +1,21 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { Keyboard } from 'lucide-react';
 import { useStore } from '../state/store';
+import { useTalk, type TalkPhase } from '../state/useTalk';
 import { useKeyboardOpen } from '../lib/useKeyboardOpen';
 import { fadeIn, fadeOutCopy, ghost, MORPH_MS, prefersReducedMotion, shapeOf, slideFrom } from '../lib/morph';
 import { handoff } from '../lib/handoff';
+import { locateMe } from '../lib/areas';
 import type { Vybe } from '../lib/vybe';
 import { FadePill } from './FadePill';
-import { MicButton, type TalkPhase } from './MicButton';
+import { MicButton } from './MicButton';
 import { RowSheet } from './RowSheet';
 import { SentenceSlot } from './SentenceSlot';
 import { TypeField } from './TypeField';
 import { VybeCard, type RowKey } from './VybeCard';
 import { Wordmark } from './Wordmark';
 import './StartScreen.css';
-
-const TALK_MAX_MS = 15_000;
-const THINKING_TIMEOUT_MS = 8_000;
 
 const PHASE_LABEL: Record<TalkPhase, string> = {
   idle: 'Tap to talk',
@@ -30,7 +29,6 @@ const isTouch = window.matchMedia('(pointer: coarse)').matches;
 export function StartScreen() {
   const { state, dispatch, send, join } = useStore();
   const settings = state.onboarded;
-  const [phase, setPhase] = useState<TalkPhase>('idle');
   const [typing, setTyping] = useState(false);
   const [sheet, setSheet] = useState<RowKey | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -40,39 +38,14 @@ export function StartScreen() {
   const typeRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const morphing = useRef(false);
-  const talkCap = useRef<number | undefined>(undefined);
   const keyboardOpen = useKeyboardOpen();
-
-  // The server answered with chips: done thinking.
-  useEffect(() => {
-    setPhase((p) => (p === 'thinking' ? 'idle' : p));
-  }, [state.chipsSeq]);
-
-  useEffect(() => {
-    if (phase !== 'thinking') return;
-    const t = window.setTimeout(() => setPhase('idle'), THINKING_TIMEOUT_MS);
-    return () => window.clearTimeout(t);
-  }, [phase]);
-
-  useEffect(() => () => window.clearTimeout(talkCap.current), []);
-
-  const endTalk = () => {
-    window.clearTimeout(talkCap.current);
-    // TODO(P4): stop the mic stream here.
-    send({ type: 'talk_end' });
-    setPhase('thinking');
-  };
-
-  const startTalk = () => {
-    // TODO(P4): unlock audio, start mic capture and stream PCM16 frames via the socket;
-    // on permission denied switch to typing mode with the toast "Mic is off, type it instead".
-    dispatch({ type: 'clear_transcript' });
-    send({ type: 'talk_start', purpose: 'mood' });
-    setPhase('listening');
-    talkCap.current = window.setTimeout(endTalk, TALK_MAX_MS);
-  };
-
-  const onMic = () => (phase === 'listening' ? endTalk() : startTalk());
+  // Mic blocked or unavailable: switch to typing (set below, once switchMode exists).
+  const micOff = useRef<() => void>(() => undefined);
+  const talk = useTalk(
+    'mood',
+    useCallback(() => micOff.current(), []),
+  );
+  const { phase } = talk;
 
   /**
    * Voice <-> typing. The mic circle and the type bar are one shape: the lavender circle slides
@@ -81,7 +54,7 @@ export function StartScreen() {
    */
   const switchMode = (toTyping: boolean) => {
     if (morphing.current) return;
-    if (toTyping && phase === 'listening') endTalk();
+    if (toTyping && phase === 'listening') talk.stop();
     if (!toTyping) inputRef.current?.blur();
 
     const form = formRef.current;
@@ -146,11 +119,24 @@ export function StartScreen() {
     });
   };
 
+  micOff.current = () => {
+    dispatch({ type: 'toast', text: 'Mic is off, type it instead' });
+    switchMode(true);
+  };
+
   const setVybe = (vybe: Vybe) => dispatch({ type: 'set_vybe', vybe });
 
   const go = (vybe?: Vybe) => {
-    if (phase === 'listening') endTalk();
-    // TODO(P4): unlock audio (resume AudioContext) and request geolocation, silent fallback.
+    if (phase === 'listening') talk.stop();
+    // Measure from where the phone is, unless they've picked an area before. A "no" falls back
+    // silently to the server's default area; the board's area line lets them pick one later.
+    if (!state.place) {
+      void locateMe().then((place) => {
+        if (!place) return dispatch({ type: 'location_denied' });
+        dispatch({ type: 'set_place', place });
+        send({ type: 'location', ...place });
+      });
+    }
     if (vybe) setVybe(vybe);
     join();
     // First time in: the loading screen covers the wait, and the mic glides into its orb.
@@ -184,7 +170,7 @@ export function StartScreen() {
             </div>
           ) : (
             <div key="voice" ref={voiceRef} className="start-voice">
-              <MicButton phase={phase} onPress={onMic} buttonRef={micRef} />
+              <MicButton phase={phase} onPress={talk.toggle} buttonRef={micRef} />
               <p className="start-phase">{PHASE_LABEL[phase]}</p>
               <SentenceSlot text={state.transcript} />
               <button type="button" className="start-type-btn" onClick={() => switchMode(true)}>

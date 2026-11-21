@@ -11,6 +11,14 @@
   color: var(--text);
   border: 1px solid var(--soft);
   transition: transform var(--dur-fast) ease;
+  /* A pick that changes after a re-sort arrives softly rather than popping in */
+  animation: hero-card-in 260ms ease-out both;
+}
+
+@keyframes hero-card-in {
+  from {
+    opacity: 0;
+  }
 }
 
 .hero-card:active {

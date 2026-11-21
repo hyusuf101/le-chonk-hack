@@ -1,5 +1,28 @@
+/* Swipe container: horizontal drags reveal "Not for me", vertical ones still scroll the page */
+.drow-swipe {
+  position: relative;
+  touch-action: pan-y;
+}
+
+.drow-action {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  right: 0;
+  width: 104px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: var(--notinto-bg);
+  color: var(--notinto-fg);
+  font-size: 14px;
+  font-weight: 600;
+}
+
 .drow {
   position: relative;
+  background: var(--bg); /* covers the action until the row slides */
+  transition: transform 240ms var(--ease-out);
   display: grid;
   grid-template-columns: 54px minmax(0, 1fr);
   align-items: start;
@@ -22,6 +45,14 @@
 
 .drow:active::before {
   opacity: 1;
+}
+
+.drow.is-dragging {
+  transition: none;
+}
+
+.drow.is-dragging::before {
+  opacity: 0;
 }
 
 .drow > * {

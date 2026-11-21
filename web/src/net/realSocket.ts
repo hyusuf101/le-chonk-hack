@@ -1,4 +1,4 @@
-import type { ClientMessage, JoinMsg, PrefsMsg, ServerMessage } from '../contract';
+import type { ClientMessage, JoinMsg, LocationMsg, PrefsMsg, ServerMessage } from '../contract';
 import type { ConnStatus, VybeSocket } from './socket';
 
 const BASE_DELAY_MS = 500;
@@ -9,7 +9,7 @@ function isServerMessage(data: unknown): data is ServerMessage {
 }
 
 /**
- * WebSocket with exponential backoff. While disconnected, only the latest join + prefs are kept,
+ * WebSocket with exponential backoff. While disconnected, only the latest join, prefs and location are kept,
  * and they're replayed on every reconnect so the server can restore the session. Everything else
  * sent while offline (talk, feedback) is dropped: it would be stale by the time we're back.
  */
@@ -23,6 +23,7 @@ export function createRealSocket(url: string): VybeSocket {
   let closed = false;
   let lastJoin: JoinMsg | null = null;
   let lastPrefs: PrefsMsg | null = null;
+  let lastLocation: LocationMsg | null = null;
 
   const setStatus = (next: ConnStatus) => {
     if (next === status) return;
@@ -53,6 +54,7 @@ export function createRealSocket(url: string): VybeSocket {
       setStatus('open');
       if (lastJoin) rawSend(lastJoin);
       if (lastPrefs) rawSend(lastPrefs);
+      if (lastLocation) rawSend(lastLocation);
     };
 
     socket.onmessage = (e: MessageEvent) => {
@@ -82,7 +84,12 @@ export function createRealSocket(url: string): VybeSocket {
     send(msg) {
       if (msg.type === 'join') lastJoin = msg;
       if (msg.type === 'prefs') lastPrefs = msg;
+      if (msg.type === 'location') lastLocation = msg;
       rawSend(msg);
+    },
+    sendAudio(frame) {
+      // Audio is only useful live; never queued across a reconnect.
+      if (ws?.readyState === WebSocket.OPEN) ws.send(frame);
     },
     subscribe(cb) {
       listeners.add(cb);

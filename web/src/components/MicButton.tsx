@@ -1,8 +1,8 @@
 import type { Ref } from 'react';
 import { Mic } from 'lucide-react';
+import type { TalkPhase } from '../state/useTalk';
 import './MicButton.css';
 
-export type TalkPhase = 'idle' | 'listening' | 'thinking';
 
 interface Props {
   phase: TalkPhase;

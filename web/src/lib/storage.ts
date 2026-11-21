@@ -1,3 +1,4 @@
+import type { Place } from '../contract';
 import { EMPTY_VYBE, type Vybe } from './vybe';
 
 const KEY = 'vybe:v1';
@@ -6,6 +7,8 @@ export interface Saved {
   vybe: Vybe;
   room: string | null;
   onboarded: boolean;
+  /** a picked area is remembered; GPS is asked for fresh each time */
+  place: Place | null;
 }
 
 /** `?reset` in the URL wipes the saved session and starts from the start screen. */
@@ -22,7 +25,7 @@ function consumeResetParam(): void {
 }
 
 export function loadSaved(): Saved {
-  const fallback: Saved = { vybe: EMPTY_VYBE, room: null, onboarded: false };
+  const fallback: Saved = { vybe: EMPTY_VYBE, room: null, onboarded: false, place: null };
   consumeResetParam();
   try {
     const raw = localStorage.getItem(KEY);
@@ -32,6 +35,7 @@ export function loadSaved(): Saved {
       vybe: { ...EMPTY_VYBE, ...parsed.vybe },
       room: parsed.room ?? null,
       onboarded: parsed.onboarded === true,
+      place: parsed.place?.source === 'search' ? parsed.place : null,
     };
   } catch {
     return fallback;

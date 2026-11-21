@@ -110,6 +110,15 @@ export interface TalkTextMsg {
   text: string;
 }
 
+/** Where the user is starting from (proposed in INTEGRATION.md; answer with a fresh `board`). */
+export interface LocationMsg {
+  type: 'location';
+  lat: number;
+  lng: number;
+  label: string;
+  source: 'gps' | 'search';
+}
+
 export interface FeedbackMsg {
   type: 'feedback';
   item_id: string;
@@ -136,12 +145,14 @@ export type ClientMessage =
   | TalkStartMsg
   | TalkEndMsg
   | TalkTextMsg
+  | LocationMsg
   | FeedbackMsg
   | BoardOnMsg
   | TimeTravelMsg
   | RefreshNowMsg;
 
 export type Prefs = Omit<PrefsMsg, 'type'>;
+export type Place = Omit<LocationMsg, 'type'>;
 
 // ── Server → phone ──────────────────────────────────────────────
 

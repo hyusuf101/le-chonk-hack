@@ -1,0 +1,58 @@
+/* Slides down just under the header row while an announcement plays */
+.announcer {
+  position: absolute;
+  top: calc(var(--safe-top) + 60px);
+  left: calc(var(--gutter) + var(--safe-left));
+  right: calc(var(--gutter) + var(--safe-right));
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--card);
+  border: var(--hairline);
+  border-radius: var(--r-card);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  animation: announcer-in 280ms var(--ease-out) both;
+}
+
+.announcer svg {
+  flex: none;
+  color: var(--accent);
+}
+
+.announcer.is-leaving {
+  animation: announcer-out 220ms ease-in both;
+}
+
+@keyframes announcer-in {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+}
+
+@keyframes announcer-out {
+  to {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+}
+
+@keyframes announcer-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .announcer {
+    animation-name: announcer-fade;
+  }
+  .announcer.is-leaving {
+    animation: announcer-fade 220ms ease-in reverse both;
+  }
+}

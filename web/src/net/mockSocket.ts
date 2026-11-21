@@ -1,4 +1,15 @@
-import type { BoardMsg, Budget, ChipsMsg, ClientMessage, Pick, Prefs, Row, ServerMessage, Status } from '../contract';
+import type {
+  BoardMsg,
+  Budget,
+  ChipsMsg,
+  ClientMessage,
+  Pick,
+  Prefs,
+  Row,
+  ServerMessage,
+  Status,
+  TalkPurpose,
+} from '../contract';
 import { MOCK_ITEMS, type MockItem } from '../mock/items';
 import { londonWallTime, MINUTE } from '../lib/time';
 import type { ConnStatus, VybeSocket } from './socket';
@@ -19,6 +30,7 @@ const DEFAULT_PREFS: Prefs = {
 };
 
 const MOCK_SENTENCE = 'Me and two mates, want a laugh, nothing over a tenner.';
+const MOCK_COMMAND = 'Cheaper, and nothing outdoors.';
 const MOCK_SENTENCE_CHIPS: ChipsMsg = { type: 'chips', include: ['a laugh'], exclude: [], budget: 10, company: 3 };
 const WORD_MS = 280;
 const THINK_MS = 700;
@@ -66,9 +78,14 @@ export function createMockSocket(): VybeSocket {
   let prefs: Prefs = DEFAULT_PREFS;
   let intervals: number[] = [];
   let joined = false;
+  let area = 'London Bridge';
   const hidden = new Set<string>();
+  // Announce a pick once per status change; statuses already showing when you join stay quiet.
+  const announced = new Set<string>();
+  let primed = false;
   let talkTimer: number | undefined;
   let spoken = 0;
+  let talkPurpose: TalkPurpose = 'mood';
 
   const emit = (msg: ServerMessage) => {
     setTimeout(() => listeners.forEach((cb) => cb(msg)), 0);
@@ -112,16 +129,40 @@ export function createMockSocket(): VybeSocket {
     }
   }
 
+  function announceChanges(rows: Row[], now: number) {
+    for (const r of rows) {
+      const kind = r.status === 'boarding' ? 'boarding' : r.status === 'last_call' ? 'last_call' : null;
+      if (!r.pick || !kind) continue;
+      const key = `${r.id}:${kind}`;
+      if (announced.has(key)) continue;
+      announced.add(key);
+      if (!primed) continue;
+      const mins = Math.max(1, Math.round((Date.parse(r.leave_by) - now) / MINUTE));
+      emit({
+        type: 'announce',
+        item_id: r.id,
+        kind,
+        url: '', // no audio in the mock: the client plays its station chime
+        caption:
+          kind === 'boarding'
+            ? `${r.name} is now boarding. Leave in ${mins} minutes.`
+            : `Last call for ${r.name}. Leave now.`,
+      });
+    }
+    primed = true;
+  }
+
   function board(): BoardMsg {
     const rows = MOCK_ITEMS.filter((item) => !hidden.has(item.id) && matches(item))
       .map((item) => toRow(item, clock))
       .filter((r) => Date.parse(r.leave_by) > clock - DEPARTED_KEEP_MIN * MINUTE)
       .sort((a, b) => Date.parse(a.leave_by) - Date.parse(b.leave_by));
     assignPicks(rows);
+    if (joined) announceChanges(rows, clock);
     return {
       type: 'board',
       now: new Date(clock).toISOString(),
-      area: 'London Bridge',
+      area,
       weather: { summary: 'Light rain', rain_from: new Date(rainFrom).toISOString() },
       count: rows.filter((r) => r.status !== 'departed' && r.status !== 'cancelled').length,
       members: ['You'],
@@ -160,7 +201,8 @@ export function createMockSocket(): VybeSocket {
           break;
         }
         case 'talk_start': {
-          const words = MOCK_SENTENCE.split(' ');
+          talkPurpose = msg.purpose;
+          const words = (talkPurpose === 'command' ? MOCK_COMMAND : MOCK_SENTENCE).split(' ');
           spoken = 0;
           clearInterval(talkTimer);
           talkTimer = window.setInterval(() => {
@@ -172,8 +214,31 @@ export function createMockSocket(): VybeSocket {
         }
         case 'talk_end':
           clearInterval(talkTimer);
-          emit({ type: 'transcript', text: MOCK_SENTENCE, final: true });
-          setTimeout(() => emit(MOCK_SENTENCE_CHIPS), THINK_MS);
+          if (talkPurpose === 'command') {
+            // Board command: one step cheaper and no outdoor events, then say what changed.
+            emit({ type: 'transcript', text: MOCK_COMMAND, final: true });
+            const budget: Budget = prefs.budget === 999 ? 20 : 10;
+            const removed = MOCK_ITEMS.filter((i) => !hidden.has(i.id) && matches(i) && i.outdoor).length;
+            prefs = { ...prefs, budget, exclude: [...new Set([...prefs.exclude, 'outdoors'])] };
+            setTimeout(() => {
+              emit({ type: 'chips', include: [], exclude: ['outdoors'], budget });
+              emit({
+                type: 'note',
+                text: removed
+                  ? `Removed ${removed} outdoor, budget now under \u00a3${budget}`
+                  : `Budget now under \u00a3${budget}`,
+              });
+              emit(board());
+            }, THINK_MS);
+          } else {
+            emit({ type: 'transcript', text: MOCK_SENTENCE, final: true });
+            setTimeout(() => emit(MOCK_SENTENCE_CHIPS), THINK_MS);
+          }
+          break;
+        case 'location':
+          // The mock keeps its London Bridge listings; it just reflects where you said you are.
+          area = msg.label;
+          if (joined) emit(board());
           break;
         case 'feedback': {
           const item = MOCK_ITEMS.find((i) => i.id === msg.item_id);
@@ -200,6 +265,9 @@ export function createMockSocket(): VybeSocket {
         default:
           break;
       }
+    },
+    sendAudio() {
+      // The mock fakes speech recognition; mic frames are ignored.
     },
     subscribe(cb) {
       listeners.add(cb);

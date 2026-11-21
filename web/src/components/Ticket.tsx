@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Bookmark, ChevronLeft, Navigation, Ticket as TicketIcon, X } from 'lucide-react';
+import { Bookmark, ChevronLeft, Navigation, Ticket as TicketIcon, Volume2, X } from 'lucide-react';
+import { playClip } from '../audio/player';
 import type { Row } from '../contract';
 import { ago, CATEGORY_LABEL, formatPrice, hostname } from '../lib/format';
 import { formatHM, MINUTE } from '../lib/time';
@@ -71,7 +72,16 @@ export function Ticket({ row, next, nowMs, student, liked, onBack, onNext, onLik
         <button type="button" className="ticket-circle" aria-label="Back to the board" onClick={onBack}>
           <ChevronLeft size={20} strokeWidth={2} aria-hidden="true" />
         </button>
-        {/* TODO(P4): Volume2 circle that plays voiceover_url through the PCM player. */}
+        {row.voiceover_url && (
+          <button
+            type="button"
+            className="ticket-circle"
+            aria-label="Play voiceover"
+            onClick={() => playClip({ url: row.voiceover_url! })}
+          >
+            <Volume2 size={20} strokeWidth={2} aria-hidden="true" />
+          </button>
+        )}
       </div>
 
       <div className="ticket-body ticket-fade">
