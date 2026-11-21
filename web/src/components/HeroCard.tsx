@@ -21,6 +21,7 @@ interface Props {
   row: Row;
   nowMs: number;
   student: boolean;
+  boarded: string[];
   onOpen: (row: Row, e: MouseEvent<HTMLElement>) => void;
 }
 
@@ -36,7 +37,7 @@ function LeaveText({ row, nowMs }: { row: Row; nowMs: number }) {
   );
 }
 
-export function HeroCard({ row, nowMs, student, onOpen }: Props) {
+export function HeroCard({ row, nowMs, student, boarded, onOpen }: Props) {
   const price = formatPrice(row, student);
   const fuse = (Date.parse(row.leave_by) - nowMs) / (FUSE_WINDOW_MIN * MINUTE);
   // Photo cards only once the image has actually loaded; otherwise the poster layout.
@@ -85,6 +86,12 @@ export function HeroCard({ row, nowMs, student, onOpen }: Props) {
         </span>
       </span>
 
+      {boarded.length > 0 && <span className="hero-boarded" aria-label={`${boarded.join(', ')} in`}>
+        {boarded.slice(0, 4).map((name, index) => <span key={index} title={name} aria-hidden="true">
+          {name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase()}
+        </span>)}
+        {boarded.length > 4 && <span aria-hidden="true">+{boarded.length - 4}</span>}
+      </span>}
       <FuseLine fraction={fuse} />
       <Grain />
     </button>

@@ -1,10 +1,16 @@
 import { useCallback, useLayoutEffect, useRef, useState, type MouseEvent, type RefObject } from 'react';
-import type { Row } from '../contract';
+import type { Category, Row } from '../contract';
 import { dayWord, MINUTE } from '../lib/time';
 import { prefersReducedMotion } from '../lib/morph';
 import { useStore } from '../state/store';
 import { DepartureRow } from './DepartureRow';
 import './DepartureList.css';
+
+const GROUP_LIMIT = 5;
+const LABELS: Record<Category, string> = {
+  comedy: 'Comedy', games: 'Games', food: 'Food', music: 'Music',
+  culture: 'Culture', bar: 'Bars', other: 'Other',
+};
 
 const SOON_MIN = 30;
 /** A departed row shows "Departed" this long, then collapses away. */
@@ -15,7 +21,13 @@ interface Props {
   rows: Row[];
   nowMs: number;
   wallMs: number;
+  readOnly?: boolean;
   onOpen: (row: Row, e: MouseEvent<HTMLElement>) => void;
+}
+
+function venueKey(row: Row): string {
+  const venue = row.venue.trim().toLowerCase().replace(/\s+/g, ' ');
+  return venue || row.id;
 }
 
 type Phase = 'live' | 'collapsing' | 'gone';
@@ -85,7 +97,7 @@ function useReorderAnimation(listRef: RefObject<HTMLDivElement | null>) {
   });
 }
 
-export function DepartureList({ rows, nowMs, wallMs, onOpen }: Props) {
+export function DepartureList({ rows, nowMs, wallMs, readOnly, onOpen }: Props) {
   const { send } = useStore();
   const departedPhase = useDepartedPhase(rows, wallMs);
   const listRef = useRef<HTMLDivElement>(null);
@@ -105,30 +117,58 @@ export function DepartureList({ rows, nowMs, wallMs, onOpen }: Props) {
     if (at === undefined) return departedPhase(row);
     return wallMs - at < COLLAPSE_MS ? 'collapsing' : 'gone';
   };
-  const rest = rows
-    .filter((r) => !r.pick)
-    .map((row) => ({ row, phase: phaseOf(row) }))
-    .filter((r) => r.phase !== 'gone');
+  const [category, setCategory] = useState<Category | 'all'>('all');
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const pickedVenues = new Set(rows.filter((row) => row.pick).map(venueKey));
+  const venues = new Map<string, { row: Row; phase: Phase; repeats: number }>();
+  for (const row of rows) {
+    const key = venueKey(row);
+    const phase = phaseOf(row);
+    if (row.pick || pickedVenues.has(key) || phase === 'gone') continue;
+    const existing = venues.get(key);
+    if (!existing) venues.set(key, { row, phase, repeats: 0 });
+    else if (existing.row.status === 'departed' && row.status !== 'departed') {
+      venues.set(key, { row, phase, repeats: existing.repeats + 1 });
+    } else existing.repeats++;
+  }
+  const entries = [...venues.values()];
+  const counts = new Map<Category, number>();
+  for (const { row } of entries) counts.set(row.category, (counts.get(row.category) ?? 0) + 1);
+  const selected = category === 'all' || counts.has(category) ? category : 'all';
+  const rest = entries.filter(({ row }) => selected === 'all' || row.category === selected);
   const cutoff = nowMs + SOON_MIN * MINUTE;
   const groups = [
-    { title: 'Next 30 minutes', items: rest.filter((r) => Date.parse(r.row.leave_by) <= cutoff) },
-    { title: `Later ${dayWord(nowMs)}`, items: rest.filter((r) => Date.parse(r.row.leave_by) > cutoff) },
+    { id: 'soon', title: 'Next 30 minutes', items: rest.filter((r) => Date.parse(r.row.leave_by) <= cutoff) },
+    { id: 'later', title: `Later ${dayWord(nowMs)}`, items: rest.filter((r) => Date.parse(r.row.leave_by) > cutoff) },
   ].filter((g) => g.items.length > 0);
 
   return (
     <div ref={listRef} className="dlist">
+      {entries.length > 0 && <nav className="category-bar" aria-label="Filter departures by category">
+        <button type="button" aria-pressed={selected === 'all'} onClick={() => { setCategory('all'); setExpanded({}); }}>All {entries.length}</button>
+        {(Object.keys(LABELS) as Category[]).filter((key) => counts.has(key)).map((key) =>
+          <button key={key} type="button" aria-pressed={selected === key} onClick={() => { setCategory(key); setExpanded({}); }}>
+            {LABELS[key]} {counts.get(key)}
+          </button>
+        )}
+      </nav>}
       {groups.map((group) => (
-        <section key={group.title} className="dlist-group">
+        <section key={group.id} className="dlist-group">
           <h2 className="t-sub dlist-title">{group.title}</h2>
           <ul className="dlist-rows">
-            {group.items.map(({ row, phase }) => (
+            {group.items.slice(0, expanded[group.id] ? undefined : GROUP_LIMIT).map(({ row, phase, repeats }) => (
               <li key={row.id} className={`dlist-item${phase === 'collapsing' ? ' is-collapsing' : ''}`}>
                 <div className="dlist-item-inner">
-                  <DepartureRow row={row} nowMs={nowMs} onOpen={onOpen} onSkip={skip} />
+                  <DepartureRow row={row} nowMs={nowMs} onOpen={onOpen} onSkip={readOnly ? undefined : skip} />
+                  {repeats > 0 && <p className="venue-repeats">+{repeats} at {row.venue}</p>}
                 </div>
               </li>
             ))}
           </ul>
+          {group.items.length > GROUP_LIMIT && <button className="show-more" type="button" aria-expanded={!!expanded[group.id]}
+            onClick={() => setExpanded({ ...expanded, [group.id]: !expanded[group.id] })}>
+            {expanded[group.id] ? 'Show fewer' : `Show ${group.items.length - GROUP_LIMIT} more`}
+          </button>}
         </section>
       ))}
     </div>

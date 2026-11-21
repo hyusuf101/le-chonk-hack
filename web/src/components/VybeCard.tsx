@@ -7,14 +7,15 @@ export type RowKey = 'into' | 'notInto' | 'budget' | 'company';
 
 interface Props {
   vybe: Vybe;
+  hideTitle?: boolean;
   onChange: (vybe: Vybe) => void;
   onOpen: (row: RowKey) => void;
 }
 
-export function VybeCard({ vybe, onChange, onOpen }: Props) {
+export function VybeCard({ vybe, hideTitle, onChange, onOpen }: Props) {
   return (
     <section className="vcard" aria-label="Your vybe">
-      <h2 className="vcard-label">Your vybe</h2>
+      {!hideTitle && <h2 className="vcard-label">Your vybe</h2>}
       <VybeRow
         label="Into"
         hint="e.g. a laugh, chill, active"

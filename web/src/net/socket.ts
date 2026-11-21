@@ -12,6 +12,7 @@ export interface VybeSocket {
   sendAudio(frame: ArrayBuffer): void;
   subscribe(cb: (msg: ServerMessage) => void): () => void;
   onStatus(cb: (status: ConnStatus) => void): () => void;
+  setFastClock?(fast: boolean): void;
   close(): void;
 }
 

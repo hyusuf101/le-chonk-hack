@@ -4,6 +4,8 @@ import { getAudioContext } from './context';
 const MAX_QUEUED = 2;
 const queue: string[] = [];
 let playing = false;
+let active: AudioBufferSourceNode | null = null;
+let playback = 0;
 
 async function load(ctx: AudioContext, url: string): Promise<AudioBuffer> {
   const res = await fetch(url);
@@ -23,23 +25,41 @@ async function playNext(): Promise<void> {
     return;
   }
   playing = true;
-  const ctx = getAudioContext();
+  const version = playback;
   try {
+    const ctx = getAudioContext();
     if (ctx.state !== 'running') await ctx.resume();
     const src = ctx.createBufferSource();
     src.buffer = await load(ctx, url);
+    if (version !== playback) return;
+    active = src;
     src.connect(ctx.destination);
-    src.onended = () => void playNext();
+    src.onended = () => {
+      active = null;
+      void playNext();
+    };
     src.start();
   } catch {
     // Missing or unplayable clip: stay quiet rather than make a noise that means nothing.
-    void playNext();
+    if (version === playback) void playNext();
   }
 }
 
-/** Plays raw PCM16 mono 24 kHz clips (e.g. a ticket's voiceover) one at a time; drops extras. */
+/** Plays raw PCM16 mono 24 kHz display announcement clips one at a time; drops extras. */
 export function playClip(url: string): void {
   if (!url || queue.length >= MAX_QUEUED) return;
   queue.push(url);
   if (!playing) void playNext();
+}
+
+export function stopClips(): void {
+  playback++;
+  queue.length = 0;
+  if (active) {
+    active.onended = null;
+    active.stop();
+    active.disconnect();
+    active = null;
+  }
+  playing = false;
 }

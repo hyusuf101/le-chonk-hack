@@ -181,3 +181,22 @@
     padding-top: 16px;
   }
 }
+
+.hero-boarded {
+  position: relative;
+  display: flex;
+  gap: 4px;
+  margin-top: 12px;
+}
+
+.hero-boarded > span {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--soft);
+  color: var(--light);
+  font-size: 11px;
+  font-weight: 600;
+}

@@ -1,0 +1,140 @@
+.people-strip {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--gutter) 4px;
+  gap: 10px;
+  color: var(--text-2);
+  font-size: 14px;
+}
+
+.people-strip svg { color: var(--muted); flex: none; }
+
+.invite-content {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+}
+
+.room-code {
+  display: block;
+  width: 132px;
+  height: 132px;
+  border-radius: 8px;
+}
+
+.invite-link {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: var(--hairline);
+  border-radius: var(--r-pill);
+  color: var(--text);
+  background: var(--bg);
+  font: inherit;
+}
+
+.invite-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.group-decision {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  display: flex;
+  flex-direction: column;
+  padding: calc(20px + var(--safe-top)) calc(24px + var(--safe-right)) calc(24px + var(--safe-bottom)) calc(24px + var(--safe-left));
+  overflow: auto;
+  background: var(--deep);
+  color: var(--light);
+  animation: board-in 260ms ease both;
+}
+
+.decision-plan {
+  margin: auto 0;
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  padding: 24px 0;
+}
+
+.decision-directions {
+  margin-top: 12px;
+  background: var(--text);
+  color: var(--deep);
+}
+
+.demo-panel {
+  position: absolute;
+  z-index: 18;
+  right: calc(var(--safe-right) + 12px);
+  bottom: calc(var(--safe-bottom) + 78px);
+  width: max-content;
+  max-width: calc(100% - 24px);
+  border: var(--hairline);
+  border-radius: 16px;
+  background: var(--card);
+}
+
+.demo-controls {
+  display: grid;
+  gap: 8px;
+  padding: 0 12px 12px;
+  font-size: 14px;
+}
+
+.demo-controls input[type="range"] {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  accent-color: var(--accent);
+}
+
+.display-tools {
+  position: absolute;
+  bottom: calc(16px + var(--safe-bottom));
+  right: calc(16px + var(--safe-right));
+  z-index: 4;
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 12px;
+  background: var(--card);
+  border: var(--hairline);
+  border-radius: var(--r-card);
+  font-size: 14px;
+}
+
+.board--display .board-scroll { padding-bottom: 230px; }
+
+@media (min-width: 900px) {
+  .board--display .board-scroll {
+    padding-inline: max(24px, calc((100% - 1200px) / 2));
+  }
+  .board--display .board-title { font-size: clamp(48px, 6vw, 84px); }
+  .board--display .hero-card { flex-basis: min(46cqw, 480px); }
+  .board--display .drow-name { font-size: 20px; }
+  .board--display .drow-time { font-size: 23px; }
+}
+
+.ticket-join {
+  background: var(--soft);
+  color: var(--light);
+  white-space: nowrap;
+}
+
+.ticket-join[aria-pressed="true"] {
+  background: var(--light);
+  color: var(--deep);
+}
+
+.app--display { max-width: none; }
+
+.board-empty {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  margin: 24px var(--gutter);
+  padding: 20px;
+  border: var(--hairline);
+  border-radius: var(--r-card);
+  background: var(--card);
+}

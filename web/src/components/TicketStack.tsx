@@ -26,7 +26,7 @@ function coverRadius(x: number, y: number, w: number, h: number): number {
  * Full-screen tickets for every departure still on, in time order, with vertical snap between them.
  * Opens as the venue colour expanding from the tapped point; closes back into the row it came from.
  */
-export function TicketStack({ open }: { open: OpenTicket }) {
+export function TicketStack({ open, covered }: { open: OpenTicket; covered: boolean }) {
   const { state, dispatch, send } = useStore();
   const { nowMs } = useClock(state.board, state.boardAt);
   const stackRef = useRef<HTMLDivElement>(null);
@@ -182,6 +182,7 @@ export function TicketStack({ open }: { open: OpenTicket }) {
   return (
     <div
       ref={stackRef}
+      inert={covered}
       className="ticket-stack"
       role="dialog"
       aria-modal="true"
@@ -195,6 +196,11 @@ export function TicketStack({ open }: { open: OpenTicket }) {
           nowMs={nowMs}
           student={state.vybe.student}
           liked={state.liked.includes(row.id)}
+          joined={!!state.you && state.board?.boarded[row.id]?.includes(state.you)}
+          onJoin={state.conn === 'open' && (state.board?.members.length ?? 0) > 1 ? () => {
+            const joined = !!state.you && state.board?.boarded[row.id]?.includes(state.you);
+            send({ type: 'board_on', item_id: joined ? null : row.id });
+          } : undefined}
           onBack={back}
           onNext={() => scrollTo(i + 1)}
           onLike={() => {

@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { Bookmark, ChevronLeft, Navigation, Ticket as TicketIcon, Volume2, X } from 'lucide-react';
-import { playClip } from '../audio/player';
+import { Bookmark, ChevronLeft, Navigation, Ticket as TicketIcon, X } from 'lucide-react';
 import type { Row } from '../contract';
 import { ago, CATEGORY_LABEL, formatPrice, hostname } from '../lib/format';
 import { formatHM, MINUTE } from '../lib/time';
@@ -22,13 +21,15 @@ interface Props {
   nowMs: number;
   student: boolean;
   liked: boolean;
+  joined?: boolean;
+  onJoin?: () => void;
   onBack: () => void;
   onNext: () => void;
   onLike: () => void;
   onSkip: () => void;
 }
 
-export function Ticket({ row, next, nowMs, student, liked, onBack, onNext, onLike, onSkip }: Props) {
+export function Ticket({ row, next, nowMs, student, liked, joined, onJoin, onBack, onNext, onLike, onSkip }: Props) {
   const colors = useVenueColors(row);
   // Photo layout only once the image has actually loaded; otherwise the poster.
   const [photo, setPhoto] = useState<'loading' | 'ok' | 'failed'>(row.photo_url ? 'loading' : 'failed');
@@ -72,16 +73,7 @@ export function Ticket({ row, next, nowMs, student, liked, onBack, onNext, onLik
         <button type="button" className="ticket-circle" aria-label="Back to the board" onClick={onBack}>
           <ChevronLeft size={20} strokeWidth={2} aria-hidden="true" />
         </button>
-        {row.voiceover_url && (
-          <button
-            type="button"
-            className="ticket-circle"
-            aria-label="Play voiceover"
-            onClick={() => playClip(row.voiceover_url!)}
-          >
-            <Volume2 size={20} strokeWidth={2} aria-hidden="true" />
-          </button>
-        )}
+          {onJoin && <button type="button" className="pill ticket-join" aria-pressed={joined} onClick={onJoin}>I’m in</button>}
       </div>
 
       <div className="ticket-body ticket-fade">

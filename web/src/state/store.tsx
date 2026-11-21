@@ -8,8 +8,9 @@ import {
   type Dispatch,
   type ReactNode,
 } from 'react';
-import type { AnnounceMsg, BoardMsg, ClientMessage, Place, ServerMessage } from '../contract';
+import type { AnnounceMsg, BoardMsg, ClientMessage, Decision, Place, ServerMessage } from '../contract';
 import { createSocket, type ConnStatus, type VybeSocket } from '../net/socket';
+import { displayMode, invitedRoom } from '../lib/mode';
 import { loadSaved, save } from '../lib/storage';
 import { mergeChips, toPrefs, type Vybe } from '../lib/vybe';
 
@@ -32,6 +33,7 @@ export interface State {
   room: string | null;
   you: string | null;
   board: BoardMsg | null;
+  decision: Decision | null;
   /** wall-clock ms when the last board arrived; lets the UI advance the server's `now` locally */
   boardAt: number;
   screen: Screen;
@@ -73,12 +75,13 @@ function init(): State {
   const saved = loadSaved();
   return {
     conn: 'connecting',
-    room: saved.room,
+    room: invitedRoom ?? saved.room,
     you: null,
     board: null,
+    decision: null,
     boardAt: 0,
-    screen: saved.onboarded ? 'loading' : 'start',
-    onboarded: saved.onboarded,
+    screen: displayMode ? 'board' : saved.onboarded && (!invitedRoom || invitedRoom === saved.room) ? 'loading' : 'start',
+    onboarded: displayMode || (saved.onboarded && (!invitedRoom || invitedRoom === saved.room)),
     vybe: saved.vybe,
     transcript: '',
     chipsSeq: 0,
@@ -133,7 +136,9 @@ function reducer(state: State, action: Action): State {
         case 'joined':
           return { ...state, room: msg.room, you: msg.you };
         case 'board':
-          return { ...state, board: msg, boardAt: action.at };
+          return { ...state, board: msg, boardAt: action.at, decision: msg.decision };
+        case 'decision':
+          return { ...state, decision: msg };
         case 'transcript':
           return { ...state, transcript: msg.text };
         case 'note':
@@ -157,6 +162,7 @@ interface Store {
   state: State;
   dispatch: Dispatch<Action>;
   send: (msg: ClientMessage) => void;
+  setFastClock: (fast: boolean) => void;
   sendAudio: (frame: ArrayBuffer) => void;
   /** Sends join + current prefs once per connection. */
   join: () => void;
@@ -172,6 +178,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   latest.current = state;
 
   const send = useCallback((msg: ClientMessage) => socketRef.current?.send(msg), []);
+  const setFastClock = useCallback((fast: boolean) => socketRef.current?.setFastClock?.(fast), []);
   const sendAudio = useCallback((frame: ArrayBuffer) => socketRef.current?.sendAudio(frame), []);
 
   const join = useCallback(() => {
@@ -179,6 +186,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     joinedRef.current = true;
     const { room, vybe, place } = latest.current;
     send({ type: 'join', room });
+    if (displayMode) return;
     send({ type: 'prefs', ...toPrefs(vybe) });
     if (place) send({ type: 'location', ...place });
   }, [send]);
@@ -201,15 +209,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // Every change to the vybe goes to the server (and survives a reload).
   const { vybe, room, onboarded, place } = state;
   useEffect(() => {
-    send({ type: 'prefs', ...toPrefs(vybe) });
+    if (!displayMode) send({ type: 'prefs', ...toPrefs(vybe) });
   }, [vybe, send]);
 
   useEffect(() => {
-    save({ vybe, room, onboarded, place });
+    if (!displayMode && (!invitedRoom || onboarded)) save({ vybe, room, onboarded, place });
   }, [vybe, room, onboarded, place]);
 
   return (
-    <StoreContext.Provider value={{ state, dispatch, send, sendAudio, join }}>
+    <StoreContext.Provider value={{ state, dispatch, send, sendAudio, setFastClock, join }}>
       {children}
     </StoreContext.Provider>
   );

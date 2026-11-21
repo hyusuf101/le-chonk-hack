@@ -11,18 +11,18 @@ interface Props {
   row: Row;
   nowMs: number;
   onOpen: (row: Row, e: MouseEvent<HTMLElement>) => void;
-  onSkip: (row: Row) => void;
+  onSkip?: (row: Row) => void;
 }
 
 export function DepartureRow({ row, nowMs, onOpen, onSkip }: Props) {
   // The list keeps prices bare; the hero card carries the "student" qualifier.
   const price = formatPrice(row, false);
   const colors = useVenueColors(row);
-  const swipe = useSwipeToReveal(() => onSkip(row));
+  const swipe = useSwipeToReveal(() => onSkip?.(row));
 
   return (
-    <div className="drow-swipe" {...swipe.handlers}>
-      <button
+    <div className="drow-swipe" {...(onSkip ? swipe.handlers : {})}>
+      {onSkip && <button
         type="button"
         className="drow-action"
         style={{ opacity: Math.min(1, -swipe.dx / 90) }}
@@ -31,7 +31,7 @@ export function DepartureRow({ row, nowMs, onOpen, onSkip }: Props) {
         onClick={swipe.commit}
       >
         Not for me
-      </button>
+      </button>}
       <button
         className={`drow${swipe.dragging ? ' is-dragging' : ''}`}
         type="button"

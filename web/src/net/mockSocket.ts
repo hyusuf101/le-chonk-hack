@@ -12,6 +12,8 @@ import type {
 } from '../contract';
 import { MOCK_ITEMS, type MockItem } from '../mock/items';
 import { formatHM, londonWallTime, MINUTE } from '../lib/time';
+import { displayMode } from '../lib/mode';
+import { createMockRoom } from './mockRoom';
 import type { ConnStatus, VybeSocket } from './socket';
 
 const TICK_MS = 250;
@@ -80,6 +82,8 @@ export function createMockSocket(): VybeSocket {
   let prefs: Prefs = DEFAULT_PREFS;
   let intervals: number[] = [];
   let joined = false;
+  let fast = false;
+  let room: ReturnType<typeof createMockRoom> | null = null;
   let area = 'London Bridge';
   const hidden = new Set<string>();
   // Nudge once per item per moment; anything already due when you join stays quiet.
@@ -183,16 +187,27 @@ export function createMockSocket(): VybeSocket {
       .sort((a, b) => Date.parse(a.leave_by) - Date.parse(b.leave_by));
     assignPicks(rows);
     if (joined) announceChanges(rows, clock);
+    const members = room?.members() ?? [];
+    const boarded: BoardMsg['boarded'] = Object.create(null);
+    for (const member of members) {
+      if (member.item) (boarded[member.item] ??= []).push(member.name);
+    }
+    const agreed = members.length > 1 && members.every((member) => member.item && member.item === members[0].item);
+    const choice = agreed ? rows.find((row) => row.id === members[0].item && row.status !== 'departed' && row.status !== 'delayed_rain') : undefined;
     return {
       type: 'board',
       now: new Date(clock).toISOString(),
       area,
       weather: { summary: 'Light rain', rain_from: new Date(rainFrom).toISOString() },
       count: rows.filter((r) => r.status !== 'departed' && r.status !== 'cancelled').length,
-      members: ['You'],
+      members: members.map(({ name }) => name),
       rows,
-      boarded: {},
-      decision: null,
+      boarded,
+      decision: choice ? {
+        item_id: choice.id,
+        by: 'Group',
+        plan: { leave_in_min: Math.max(0, Math.ceil((Date.parse(choice.leave_by) - clock) / MINUTE)), walk_min: choice.walk_min },
+      } : null,
     };
   }
 
@@ -202,7 +217,7 @@ export function createMockSocket(): VybeSocket {
     intervals = [
       window.setInterval(() => {
         const t = performance.now();
-        clock += t - last;
+        clock += (t - last) * (fast ? 60 : 1);
         last = t;
       }, TICK_MS),
       window.setInterval(() => emit(board()), BOARD_MS),
@@ -212,11 +227,18 @@ export function createMockSocket(): VybeSocket {
   return {
     send(msg: ClientMessage) {
       switch (msg.type) {
-        case 'join':
+        case 'join': {
+          const code = msg.room ?? `mock-${Math.random().toString(36).slice(2, 9)}`;
+          room?.close();
+          room = createMockRoom(code, msg.name, displayMode, () => emit(board()));
           joined = true;
-          emit({ type: 'joined', room: msg.room ?? 'mock-room', you: msg.name ?? 'You' });
+          emit({ type: 'joined', room: code, you: room.you });
           start();
           emit(board());
+          break;
+        }
+        case 'board_on':
+          room?.boardOn(msg.item_id);
           break;
         case 'prefs': {
           const { type, ...next } = msg;
@@ -281,11 +303,12 @@ export function createMockSocket(): VybeSocket {
           setTimeout(() => emit(chipsFromText(msg.text)), THINK_MS);
           break;
         case 'time_travel':
-          clock = Date.parse(msg.now);
+          if (!joined) break;
+          if (Number.isFinite(Date.parse(msg.now))) clock = Date.parse(msg.now);
           emit(board());
           break;
         case 'refresh_now':
-          emit(board());
+          if (joined) emit(board());
           break;
         default:
           break;
@@ -302,7 +325,11 @@ export function createMockSocket(): VybeSocket {
       cb('open');
       return () => undefined;
     },
+    setFastClock(value) {
+      fast = value;
+    },
     close() {
+      room?.close();
       intervals.forEach(clearInterval);
       intervals = [];
       clearInterval(talkTimer);

@@ -58,3 +58,9 @@
   opacity: 0.4;
   pointer-events: none;
 }
+
+/* Keep a dense preference card usable on short screens. */
+.board .sheet {
+  max-height: 90%;
+  overflow-y: auto;
+}

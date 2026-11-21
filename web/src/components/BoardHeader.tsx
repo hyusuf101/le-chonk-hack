@@ -13,6 +13,9 @@ interface Props {
   board: BoardMsg | null;
   nowMs: number;
   onArea: () => void;
+  onEdit?: () => void;
+  onInvite: () => void;
+  tuning?: string;
 }
 
 function rainText(rainFrom: string | null, nowMs: number): string | null {
@@ -23,7 +26,7 @@ function rainText(rainFrom: string | null, nowMs: number): string | null {
 /** Size of the lavender dot the loading orb shrinks to before it becomes the count. */
 const DOT_PX = 10;
 
-export function BoardHeader({ board, nowMs, onArea }: Props) {
+export function BoardHeader({ board, nowMs, onArea, onEdit, onInvite, tuning }: Props) {
   const rain = board ? rainText(board.weather.rain_from, nowMs) : null;
   const countRef = useRef<HTMLSpanElement>(null);
 
@@ -56,7 +59,7 @@ export function BoardHeader({ board, nowMs, onArea }: Props) {
     <header className="board-header">
       <div className="board-header-bar">
         <Wordmark />
-        <button className="icon-btn" type="button" aria-label="Invite friends">
+        <button className="icon-btn" type="button" aria-label="Invite friends" onClick={onInvite}>
           <UserPlus size={20} strokeWidth={2} />
         </button>
       </div>
@@ -80,6 +83,9 @@ export function BoardHeader({ board, nowMs, onArea }: Props) {
               </span>
             )}
           </div>
+          {onEdit && <button type="button" className="board-tuning" onClick={onEdit}>
+            <span>Tuned to {tuning}</span><strong>Edit</strong>
+          </button>}
         </>
       )}
     </header>

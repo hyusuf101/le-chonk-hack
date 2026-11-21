@@ -10,10 +10,11 @@ interface Props {
   rows: Row[];
   nowMs: number;
   student: boolean;
+  boarded: Record<string, string[]>;
   onOpen: (row: Row, e: MouseEvent<HTMLElement>) => void;
 }
 
-export function HeroCarousel({ rows, nowMs, student, onOpen }: Props) {
+export function HeroCarousel({ rows, nowMs, student, boarded, onOpen }: Props) {
   const picks = ORDER.flatMap((pick) => rows.filter((r) => r.pick === pick));
   const trackRef = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
@@ -30,7 +31,7 @@ export function HeroCarousel({ rows, nowMs, student, onOpen }: Props) {
     <section className="hero" aria-label="Your picks">
       <div ref={trackRef} className="hero-track" onScroll={onScroll}>
         {picks.map((row) => (
-          <HeroCard key={row.id} row={row} nowMs={nowMs} student={student} onOpen={onOpen} />
+          <HeroCard key={row.id} row={row} nowMs={nowMs} student={student} boarded={boarded[row.id] ?? []} onOpen={onOpen} />
         ))}
       </div>
       {picks.length > 1 && (

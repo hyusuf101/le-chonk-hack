@@ -57,3 +57,24 @@
 }
 
 
+
+.board-tuning {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+  min-height: 44px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.board-tuning span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.board-tuning strong {
+  color: var(--accent);
+  font-weight: 600;
+}

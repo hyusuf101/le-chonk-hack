@@ -14,7 +14,7 @@ let lastShown = 0;
  * "Time to go" nudges. Silent on the phone: a caption slides down under the header (plus a short
  * buzz where supported), only for your best pick or things you've saved. Tap it to open that ticket.
  */
-export function AnnouncerCaption() {
+export function AnnouncerCaption({ display = false }: { display?: boolean }) {
   const { state, dispatch } = useStore();
   const [nudge, setNudge] = useState<{ id: string; text: string; leaving: boolean } | null>(null);
   const seq = state.announcement?.seq;
@@ -32,9 +32,9 @@ export function AnnouncerCaption() {
     lastShown = a.seq;
     const row = state.board?.rows.find((r) => r.id === a.msg.item_id);
     const cares = row?.pick === 'best' || state.liked.includes(a.msg.item_id);
-    if (!cares) return;
+    if (!display && !cares) return;
 
-    navigator.vibrate?.(BUZZ_MS);
+    if (!display) navigator.vibrate?.(BUZZ_MS);
     clearTimers();
     setNudge({ id: a.msg.item_id, text: a.msg.caption, leaving: false });
     timers.current.push(
@@ -55,6 +55,7 @@ export function AnnouncerCaption() {
         const r = e.currentTarget.getBoundingClientRect();
         clearTimers();
         setNudge(null);
+        if (display) return;
         dispatch({ type: 'open_ticket', ticket: { id: nudge.id, x: r.left + r.width / 2, y: r.top + r.height / 2 } });
       }}
     >
